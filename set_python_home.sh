@@ -15,5 +15,7 @@ else
   PYTHON_HOME=/usr/local
 fi
 
-echo $PYTHON_HOME
+# For testing, only show up by running the script ( not sourcing )
+[ "$0" == "$BASH_SOURCE" ]  && echo $PYTHON_HOME
+
 export PYTHON_HOME
