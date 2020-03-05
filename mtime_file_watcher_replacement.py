@@ -9,14 +9,17 @@
 #   - Tries to be smarter about which modules reload when files change, only
 #     modified module should reload.
 #
+import logging
 import os
 import time
-from os.path import abspath, join
-import fsevents_watcher
 from ConfigParser import ConfigParser, NoSectionError
 
+from watchdog.events import FileSystemEventHandler, PatternMatchingEventHandler, FileSystemEvent
+from watchdog.observers import Observer
+
 # Only watch for changes to .go, .py or .yaml files
-WATCHED_EXTENSIONS = set(['.go', '.py', '.yaml'])
+WATCHED_EXTENSIONS = {'.go', '.py', '.yaml'}
+
 
 def find_upwards(file_name, start_at=os.getcwd()):
     cur_dir = start_at
@@ -30,6 +33,7 @@ def find_upwards(file_name, start_at=os.getcwd()):
                 return None
             else:
                 cur_dir = parent_dir
+
 
 class MtimeFileWatcher(object):
     SUPPORTS_MULTIPLE_DIRECTORIES = True
@@ -53,24 +57,15 @@ class MtimeFileWatcher(object):
                 except TypeError:
                     watched_extensions = WATCHED_EXTENSIONS
 
-        # Paths to watch
-        paths = [module_dir]
-
-        def callback(path, flags):
-            # Get extension
-            try:
-                ext = os.path.splitext(path)[1]
-            except IndexError:
-                ext = None
-
-            # Add to changes if we're watching a file with this extension.
-            if ext in watched_extensions:
-                _changes.append(path)
-
-        fsevents_watcher.schedule(callback, paths)
+        # pattern matching files with extension
+        patterns = ["*{}".format(ext) for ext in watched_extensions]
+        logging.info("Stating fs watching on {} with pattern:{}".format(module_dir, patterns))
+        event_handler = MyEventHandler(patterns, _changes)
+        self.observer = Observer()
+        self.observer.schedule(event_handler, module_dir, recursive=True)
 
     def start(self):
-        fsevents_watcher.start()
+        self.observer.start()
 
     def changes(self, timeout=None):
         time.sleep(1)
@@ -79,4 +74,17 @@ class MtimeFileWatcher(object):
         return changed
 
     def quit(self):
-        fsevents_watcher.stop()
+        try:
+            self.observer.stop()
+        except Exception:
+            pass
+
+
+class MyEventHandler(PatternMatchingEventHandler):
+
+    def __init__(self, patterns, changes=None):
+        PatternMatchingEventHandler.__init__(self, patterns=patterns)
+        self._changes = changes
+
+    def on_any_event(self, event):
+        self._changes.append(event.src_path)

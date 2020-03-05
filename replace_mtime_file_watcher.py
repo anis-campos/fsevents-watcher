@@ -9,6 +9,7 @@ from distutils.spawn import find_executable
 
 reference_file = "mtime_file_watcher_replacement.py"
 
+
 def md5(fname):
     hash_md5 = hashlib.md5()
     try:
@@ -30,6 +31,7 @@ def detect_mtime_file_watcher_path():
         return None
     return mtime_file_watcher
 
+
 def replace(skip_backup=False):
     mtime_file_watcher = detect_mtime_file_watcher_path()
     if not mtime_file_watcher:
@@ -45,7 +47,8 @@ def replace(skip_backup=False):
     native_module_destination = os.path.abspath(
         os.path.join(mtime_file_watcher, '../{}'.format(native_module)))
     native_module_reference_checksum = md5(native_module)
-    native_module_in_place_checksum = md5(native_module_destination) if os.path.exists(native_module_destination) else None
+    native_module_in_place_checksum = md5(native_module_destination) if os.path.exists(
+        native_module_destination) else None
 
     if reference_checksum != in_place_checksum or native_module_reference_checksum != native_module_in_place_checksum:
         ts = datetime.now().isoformat().replace('-', '').replace(':', '').replace('.', '')
@@ -56,6 +59,7 @@ def replace(skip_backup=False):
         print("The replacement mtime_file_watcher.py has been copied.")
     else:
         print("Looks like the replacement is already in place.")
+
 
 def restore():
     try:
@@ -69,12 +73,14 @@ def restore():
         exit()
 
     shutil.copy(backup_file, mtime_file_watcher)
-    print('The file {} has been restored.')
+    print('The file {} has been restored.'.format(backup_file))
+
 
 parser = argparse.ArgumentParser(description='Replace and restore the AppEngine mtime_file_watcher.')
 parser.add_argument('action', help='what to do: `replace` or `restore`')
-parser.add_argument(
-    '--skip-backup', nargs='?', help='should we backup the existing file?')
+parser.add_argument('--skip-backup', action="store_true", dest="skip_backup",
+                    help='should we backup the existing file?')
+parser.set_defaults(skip_backup=False)
 
 ns = parser.parse_args()
 if ns.action == 'replace':
